@@ -1,6 +1,6 @@
-[submodule "src/PMDtools"]
-	path = src/PMDtools
+[submodule "classpipe/PMDtools"]
+	path = classpipe/PMDtools
 	url = https://github.com/pontussk/PMDtools.git
-[submodule "src/minimap2"]
-	path = src/minimap2
+[submodule "classpipe/minimap2"]
+	path = classpipe/minimap2
 	url = https://github.com/lh3/minimap2
