@@ -27,16 +27,18 @@ sudo ./classpipe/temp sudo apt install samtools >> /dev/null 2>&1
 
 # Install minimap2
 echo -n "> Installing minimap2 "
-cd ./classpipe/minimap2 >> /dev/null 2>&1
-sudo ../temp make >>  /dev/null 2>&1
-cd - >> /dev/null 2>&1
+# Repo version
+    # cd ./classpipe/minimap2 >> /dev/null 2>&1
+    # sudo ../temp make >>  /dev/null 2>&1
+    # cd - >> /dev/null 2>&1
+sudo ./classpipe/temp apt install minimap2 >> /dev/null 2>&1
 
 # Update git submodules
 echo -n "> Updating project modules "
 sudo ./classpipe/temp git submodule update --init --recursive >> /dev/null 2>&1
 
 # Pip install classpipe package
-echo -n "> Installing classpipe "
+echo "> Installing classpipe"
 if pip install -e .; then
     GREEN='\033[0;32m'
     echo -e "${GREEN}> Successfully installed package classpipe"
