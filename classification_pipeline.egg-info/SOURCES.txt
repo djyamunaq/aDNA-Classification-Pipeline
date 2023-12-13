@@ -1,9 +1,0 @@
-README.md
-setup.py
-classification_pipeline.egg-info/PKG-INFO
-classification_pipeline.egg-info/SOURCES.txt
-classification_pipeline.egg-info/dependency_links.txt
-classification_pipeline.egg-info/entry_points.txt
-classification_pipeline.egg-info/top_level.txt
-src/__init__.py
-src/__main__.py
