@@ -39,9 +39,8 @@ def main():
     args: Namespace = parser.parse_args()
 
     # Convert reference DNA file (.fa) + aDNA files (.fq) to .sam format
-    subprocess.run(['minimap2', '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, args.aDNA2, '-o', os.path.join(os.path.dirname(__file__),'.data/sam/DNA_input_sam_format.sam')])
-
-    return 
+    subprocess.run(['ls'])
+    subprocess.run([os.path.join(os.path.dirname(__file__),'./minimap2/minimap2'), '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, args.aDNA2, '-o', os.path.join(os.path.dirname(__file__),'.data/sam/DNA_input_sam_format.sam')])
 
     ##############################################
     # PMDTools ###################################
