@@ -41,7 +41,9 @@ def main():
     input_sam_file_path = os.path.join(os.path.dirname(__file__),'.data/sam/DNA_input_sam_format.sam')
 
     # Convert reference DNA file (.fa) + aDNA files (.fq) to .sam format
-    subprocess.run([os.path.join(os.path.dirname(__file__),'./minimap2/minimap2'), '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, args.aDNA2, '-o', input_sam_file_path])
+    # Repo version
+    # subprocess.run([os.path.join(os.path.dirname(__file__),'./minimap2/minimap2'), '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, args.aDNA2, '-o', input_sam_file_path])
+    subprocess.run(['minimap2', '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, args.aDNA2, '-o', input_sam_file_path])
 
     # Remove output dir if it exists
     subprocess.run(['rm', '-rf', args.output])
