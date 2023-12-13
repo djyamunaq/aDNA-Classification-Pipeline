@@ -1,0 +1,3 @@
+[console_scripts]
+classpipe = src.__main__:main
+
