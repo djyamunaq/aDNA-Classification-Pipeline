@@ -2,10 +2,12 @@
 Pipeline for classification of aDNA (.fq) based on reference DNA (.fq). 
 
 ## Description
-The aDNA Classification Pipeline (classpipe) is a tool to automate the damage pattern analysis across multiple tools (Currently supporting pyDamage, mapDamage and DamageProfiler), taking care of installing all the necessary dependencies for all the tools. 
+The aDNA Classification Pipeline (classpipe) is a tool to automate the damage pattern analysis across multiple tools (Currently supporting pyDamage*, mapDamage* and DamageProfiler*), taking care of installing all the necessary dependencies for all the tools. 
 Classpipe takes as input a reference fasta file, one or two fastq reads and, optionally, an output directory, and generates the corresponding outputs based on the flags assigned by the user. It is a way to make easier and faster to get aDNA damage pattern analysis data in order to analyse and compare among several tools.
 The pipeline also makes easier to use the tools by creating an unique interface that takes the inputs (As mentioned, a reference fasta file and one or two fastq reads) and dealing internally with the different input variations and requisitions, then outputting the results in an organized folder structure.
 The tool is hosted in github (https://github.com/djyamunaq/aDNA-Classification-Pipeline.git), where there are instructions for installation and basic usage.
+
+*Include references when passing it to latex
 
 ## Downloading:
 ```
