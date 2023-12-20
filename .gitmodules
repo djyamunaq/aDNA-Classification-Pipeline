@@ -7,3 +7,6 @@
 [submodule "classpipe/DamageProfiler"]
 	path = classpipe/DamageProfiler
 	url = https://github.com/Integrative-Transcriptomics/DamageProfiler.git
+[submodule "classpipe/atlas"]
+	path = classpipe/atlas
+	url = https://bitbucket.org/wegmannlab/atlas.git
