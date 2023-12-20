@@ -28,7 +28,7 @@ def main():
     parser.add_argument('--PMDtools', action='store_true', help='Run data on PMDTools')
     parser.add_argument('--mapDamage', action='store_true', help='Run data on mapDamage')
     parser.add_argument('--pyDamage', action='store_true', help='Run data on pyDamage')
-    parser.add_argument('--damageProfile', action='store_true', help='Run data on damageProfile')
+    parser.add_argument('--damageProfiler', action='store_true', help='Run data on damageProfiler')
     parser.add_argument('--atlas', action='store_true', help='Run data on Atlas')
     parser.add_argument('--metaDamage', action='store_true', help='Run data on metaDamage')
 
@@ -125,17 +125,26 @@ def main():
         subprocess.run(['pydamage', '--outdir', pyDamage_output_dir_path, 'analyze', input_bam_file_path])
 
     ##############################################
-    # damageProfile ##############################
+    # damageProfiler ##############################
     ##############################################
-    if args.damageProfile:
-        printRunningMessage('DamageProfile')
+    if args.damageProfiler:
+        # Create output dir
+        damageProfiler_output_dir_path = os.path.join(output_dir, 'DamageProfiler')
+        # Remove pyDamage output dir if it exists
+        subprocess.run(['rm', '-rf', damageProfiler_output_dir_path])
+
+        printRunningMessage('DamageProfiler')
+
+        # Run DamageProfiler on input file
+        subprocess.run(['java', '-jar', os.path.join(os.path.dirname(__file__), 'DamageProfiler/DamageProfiler-1.1-java11.jar'), '-i', input_bam_file_path, '-r', args.refDNA, '-o', damageProfiler_output_dir_path])
+
 
     ##############################################
     # Atlas ######################################
     ##############################################
     if args.atlas:
         printRunningMessage('Atlas')
-
+        
     ##############################################
     # metaDamage #################################
     ##############################################

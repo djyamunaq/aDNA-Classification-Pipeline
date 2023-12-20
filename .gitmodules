@@ -4,3 +4,6 @@
 [submodule "classpipe/minimap2"]
 	path = classpipe/minimap2
 	url = https://github.com/lh3/minimap2
+[submodule "classpipe/DamageProfiler"]
+	path = classpipe/DamageProfiler
+	url = https://github.com/Integrative-Transcriptomics/DamageProfiler.git
