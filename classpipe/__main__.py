@@ -22,7 +22,7 @@ def main():
     # Set input DNA files
     parser.add_argument('--refDNA', help='Input reference DNA files')
     parser.add_argument('--aDNA1', help='Input aDNA file 1')
-    parser.add_argument('--aDNA2', help='Input aDNA file 2')
+    parser.add_argument('--aDNA2', help='Input aDNA file  [Optional]', default=None)
 
     # Set tools from command line 
     parser.add_argument('--PMDtools', action='store_true', help='Run data on PMDTools')
@@ -33,29 +33,35 @@ def main():
     parser.add_argument('--metaDamage', action='store_true', help='Run data on metaDamage')
 
     # Set output destionation from command line
-    parser.add_argument('--output', help='Set output destination [Default: ./output]', default='output')
+    parser.add_argument('--output', help='Set output destination [Default: .]', default='.')
     
     # Get arguments from command line
     args: Namespace = parser.parse_args()
 
-    input_sam_file_path = os.path.join(os.path.dirname(__file__),'.data/sam/DNA_input_sam_format.sam')
+    input_sam_file_path = os.path.join(os.path.dirname(__file__),'.data/DNA_input_sam_format.sam')
+    input_bam_file_path = os.path.join(os.path.dirname(__file__),'.data/DNA_input_sam_format.bam')
 
     # Convert reference DNA file (.fa) + aDNA files (.fq) to .sam format
-    # Repo version
-    # subprocess.run([os.path.join(os.path.dirname(__file__),'./minimap2/minimap2'), '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, args.aDNA2, '-o', input_sam_file_path])
-    subprocess.run(['minimap2', '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, args.aDNA2, '-o', input_sam_file_path])
+    if args.aDNA2:
+        subprocess.run(['minimap2', '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, args.aDNA2, '-o', input_sam_file_path])
+    else:
+        subprocess.run(['minimap2', '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, '-o', input_sam_file_path])
+    
+    # Sort sam file and convert to bam format
+    subprocess.run(['samtools', 'sort', input_sam_file_path, '-o', input_sam_file_path])
+    subprocess.run(['samtools', 'view', input_sam_file_path, '-o', input_bam_file_path])
 
-    # Remove output dir if it exists
-    subprocess.run(['rm', '-rf', args.output])
+    # Create output dir if it doesn't exist
+    output_dir = os.path.join(args.output, 'output')
     # Create output
-    subprocess.run(['mkdir', args.output])
+    subprocess.run(['mkdir', output_dir])
 
     ##############################################
     # PMDTools ###################################
     ##############################################
     if args.PMDtools:
         # Create
-        PMDtools_output_dir_path = os.path.join(args.output, 'PDMTools')
+        PMDtools_output_dir_path = os.path.join(output_dir, 'PDMTools')
 
         # Remove PMDtools output dir if it exists
         subprocess.run(['rm', '-rf', PMDtools_output_dir_path])
@@ -63,7 +69,7 @@ def main():
         subprocess.run(['mkdir', PMDtools_output_dir_path])
 
         # Open input file
-        input_sam_file = open(input_sam_file_path, "r") 
+        input_bam_file = open(input_bam_file_path, "r") 
         
         # Create output file
         output_pmdtools_file_path = os.path.join(PMDtools_output_dir_path, 'output.txt')
@@ -73,27 +79,50 @@ def main():
         printRunningMessage('PMDtools')
 
         # Run PMDtools on input sam file
-        subprocess.run(['python2', os.path.join(os.path.dirname(__file__), 'PMDtools/pmdtools.0.60.py'), '--platypus', '--requirebaseq', '30'], stdin=input_sam_file, stdout=output_pmdtools_file)
+        subprocess.run(['python2', os.path.join(os.path.dirname(__file__), 'PMDtools/pmdtools.0.60.py'), '--platypus', '--requirebaseq', '30'], stdin=input_bam_file, stdout=output_pmdtools_file)
         
         # Close files
-        input_sam_file.close()
+        input_bam_file.close()
         output_pmdtools_file.close()
 
         printEndOfToolMessage('PMDtools')
 
-    return
 
     ##############################################
     # mapDamage ##################################
     ##############################################
     if args.mapDamage:
-        printRunningMessage('MapDamage')
+        # Create output dir
+        mapDamage_output_dir_path = os.path.join(output_dir, 'mapDamage')
+        # Remove mapDamage output dir if it exists
+        subprocess.run(['rm', '-rf', mapDamage_output_dir_path])
+        # Create mapDamage output dir
+        subprocess.run(['mkdir', mapDamage_output_dir_path])
+
+        # Open input file
+        input_bam_file = open(input_bam_file_path, "r") 
+        
+        printRunningMessage('mapDamage')
+
+        # Run mapDamage on input sam file
+        subprocess.run(['mapDamage', '-i', input_bam_file_path, '-r', args.refDNA, '--folder', mapDamage_output_dir_path])
+
+        # Close files
+        input_bam_file.close()
+
+        printEndOfToolMessage('mapDamage')
 
     ##############################################
     # mapDamage ##################################
     ##############################################
     if args.pyDamage:
-        printRunningMessage('PyDamage')
+        # Create output dir
+        pyDamage_output_dir_path = os.path.join(output_dir, 'pyDamage')
+        # Remove pyDamage output dir if it exists
+        subprocess.run(['rm', '-rf', pyDamage_output_dir_path])
+
+        # Run pyDamage on input file
+        subprocess.run(['pydamage', '--outdir', pyDamage_output_dir_path, 'analyze', input_bam_file_path])
 
     ##############################################
     # damageProfile ##############################
@@ -115,21 +144,6 @@ def main():
 
     printEndOfPipelineMessage()
 
-    return
-
-    # Run gargammel simulation
-    subprocess.run([os.path.join(os.path.dirname(__file__),'./gargammel/gargammel.pl'), os.path.join(os.path.dirname(__file__), './.data/')])
-    
-    # Remove output dir if it exists
-    subprocess.run(['rm', '-rf', args.output])
-    # Create output
-    subprocess.run(['mkdir', args.output])
-    # Move files to output dir
-    subprocess.run(['cp', os.path.join(os.path.dirname(__file__), './.data/simadna_s1.fq.gz'), os.path.join(args.output, 'simadna_s1.fq.gz')])
-    subprocess.run(['cp', os.path.join(os.path.dirname(__file__), './.data/simadna_s2.fq.gz'), os.path.join(args.output, 'simadna_s2.fq.gz')])
-    # Decompress files and delete previous compressed files
-    subprocess.run(['gzip', '-d', '-q', '-f', os.path.join(args.output, 'simadna_s1.fq.gz')])
-    subprocess.run(['gzip', '-d', '-q', '-f', os.path.join(args.output, 'simadna_s2.fq.gz')])
 
 
 if __name__ == '__main__':
