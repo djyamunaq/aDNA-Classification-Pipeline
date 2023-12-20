@@ -33,6 +33,16 @@ echo -n "> Installing minimap2 "
     # cd - >> /dev/null 2>&1
 sudo ./classpipe/temp apt install minimap2 >> /dev/null 2>&1
 
+# Install samtools
+echo -n "> Installing pyDamage "
+sudo pip install pydamage >> /dev/null 2>&1
+
+# Install adapterRemoval
+sudo ./classpipe/temp apt-get install adapterremoval
+
+# Install mapDamage
+sudo ./classpipe/temp apt install mapdamage >> /dev/null 2>&1
+
 # Update git submodules
 echo -n "> Updating project modules "
 sudo ./classpipe/temp git submodule update --init --recursive >> /dev/null 2>&1
