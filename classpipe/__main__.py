@@ -72,28 +72,30 @@ def main():
     ##############################################
     if args.PMDtools:
         # Create
-        PMDtools_output_dir_path = os.path.join(output_dir, 'PDMTools')
+        PMDtools_output_dir_path = os.path.join(output_dir, 'PDMtools')
 
         # Remove PMDtools output dir if it exists
         subprocess.run(['rm', '-rf', PMDtools_output_dir_path])
         # Create PMDtools output dir
         subprocess.run(['mkdir', PMDtools_output_dir_path])
 
-        # Open input file
-        input_bam_file = open(input_bam_file_path, "r") 
-        
+        # Create script to plot hist
+        output_hist_script_pmdtools_file_path = os.path.join(PMDtools_output_dir_path, 'generate_hist.r')
+        output_hist_script_pmdtools_file = open(output_hist_script_pmdtools_file_path, "w+")
+        output_hist_script_pmdtools_file.write('pmd_scores <- read.delim("output.txt", header = FALSE, sep = "\t")\nhist_data <- hist(pmd_scores$V4, breaks = 1000, xlab = "PMDscores")\nplot(hist_data, main="Histogram of PMD Scores", xlab = "PMDscores", ylab = "Frequency")')
+        output_hist_script_pmdtools_file.close()
+
         # Create output file
         output_pmdtools_file_path = os.path.join(PMDtools_output_dir_path, 'output.txt')
         # Open output file
-        output_pmdtools_file = open(output_pmdtools_file_path, "w") 
+        output_pmdtools_file = open(output_pmdtools_file_path, "w+") 
         
         printRunningMessage('PMDtools')
 
-        # Run PMDtools on input sam file
-        subprocess.run(['python2', os.path.join(os.path.dirname(__file__), 'PMDtools/pmdtools.0.60.py'), '--printDS'], stdin=input_bam_file, stdout=output_pmdtools_file)
-        
-        # Close files
-        input_bam_file.close()
+        # Run PMDtools on input bam file
+        sp = subprocess.run(['samtools', 'view', input_bam_file_path], check=True, capture_output=True)
+        subprocess.run(['python2', os.path.join(os.path.dirname(__file__), 'PMDtools/pmdtools.0.60.py'), '--printDS'], input=sp.stdout, stdout=output_pmdtools_file)
+
         output_pmdtools_file.close()
 
         printEndOfToolMessage('PMDtools')
