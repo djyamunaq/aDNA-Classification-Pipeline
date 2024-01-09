@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--refDNA', help='Input reference DNA files')
     parser.add_argument('--aDNA1', help='Input aDNA file 1')
     parser.add_argument('--aDNA2', help='Input aDNA file  [Optional]', default=None)
+    parser.add_argument('--sort', action='store_true', help='Sort DNA files [Optional]')
 
     # Set tools from command line 
     parser.add_argument('--PMDtools', action='store_true', help='Run data on PMDTools')
@@ -38,23 +39,33 @@ def main():
     # Get arguments from command line
     args: Namespace = parser.parse_args()
 
-    input_sam_file_path = os.path.join(os.path.dirname(__file__),'.data/DNA_input_sam_format.sam')
-    input_bam_file_path = os.path.join(os.path.dirname(__file__),'.data/DNA_input_sam_format.bam')
+    input_sam_file_path = os.path.join(os.path.dirname(__file__),'.data/DNA_input.sam')
+    input_bam_file_path = os.path.join(os.path.dirname(__file__),'.data/DNA_input.bam')
 
-    # Convert reference DNA file (.fa) + aDNA files (.fq) to .sam format
-    if args.aDNA2:
-        subprocess.run(['minimap2', '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, args.aDNA2, '-o', input_sam_file_path])
+    # Check if file DNA inputs are in fastq format 
+    if args.aDNA1.endswith('.fq') or args.aDNA1.endswith('.fastq'):
+        # Convert reference DNA file (.fa) + aDNA files (.fq) to .sam format
+        if args.aDNA2:
+            subprocess.run(['minimap2', '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, args.aDNA2, '-o', input_sam_file_path])
+        else:
+            subprocess.run(['minimap2', '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, '-o', input_sam_file_path])
+        subprocess.run(['samtools', 'view', input_sam_file_path, '-o', input_bam_file_path])
     else:
-        subprocess.run(['minimap2', '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, '-o', input_sam_file_path])
-    
-    # Sort sam file and convert to bam format
-    subprocess.run(['samtools', 'sort', input_sam_file_path, '-o', input_sam_file_path])
-    subprocess.run(['samtools', 'view', input_sam_file_path, '-o', input_bam_file_path])
+        # Move .bam/.sam file to .data directory
+        if args.aDNA1.endswith('.bam'):
+            input_bam_file_path = os.path.abspath(args.aDNA1)
+        elif args.aDNA1.endswith('.sam'):
+            input_sam_file_path = os.path.abspath(args.aDNA1)
+            subprocess.run(['samtools', 'view', input_sam_file_path, '-o', input_bam_file_path])
+
+    # Sort reads
+    if args.sort:
+        subprocess.run(['samtools', 'sort', input_bam_file_path, '-o', input_bam_file_path])
 
     # Create output dir if it doesn't exist
-    output_dir = os.path.join(args.output, 'output')
-    # Create output
-    subprocess.run(['mkdir', output_dir])
+    output_dir = args.output
+    if args.output == '.':
+        output_dir = os.path.join(args.output, 'class_pipe_output')
 
     ##############################################
     # PMDTools ###################################
@@ -79,7 +90,7 @@ def main():
         printRunningMessage('PMDtools')
 
         # Run PMDtools on input sam file
-        subprocess.run(['python2', os.path.join(os.path.dirname(__file__), 'PMDtools/pmdtools.0.60.py'), '--platypus', '--requirebaseq', '30'], stdin=input_bam_file, stdout=output_pmdtools_file)
+        subprocess.run(['python2', os.path.join(os.path.dirname(__file__), 'PMDtools/pmdtools.0.60.py'), '--printDS'], stdin=input_bam_file, stdout=output_pmdtools_file)
         
         # Close files
         input_bam_file.close()
@@ -105,7 +116,7 @@ def main():
         printRunningMessage('mapDamage')
 
         # Run mapDamage on input sam file
-        subprocess.run(['mapDamage', '-i', input_bam_file_path, '-r', args.refDNA, '--folder', mapDamage_output_dir_path])
+        subprocess.run(['mapDamage', '-i', input_bam_file_path, '-r', args.refDNA, '-d', mapDamage_output_dir_path, '--merge-reference-sequences', '--no-stats'])
 
         # Close files
         input_bam_file.close()
@@ -144,7 +155,9 @@ def main():
     ##############################################
     if args.atlas:
         printRunningMessage('Atlas')
-        
+        # subprocess.run([os.path.join(os.path.di rname(__file__), './atlas/atlas'), 'task=PMD', 'bam=', input_bam_file_path, 'fasta=', args.refDNA, 'lenght=50'])
+        # ./atlas task=PMD bam=example.bam fasta=reference.fa length=50
+    
     ##############################################
     # metaDamage #################################
     ##############################################
