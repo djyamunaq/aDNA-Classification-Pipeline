@@ -24,6 +24,7 @@ def main():
     parser.add_argument('--aDNA1', help='Input aDNA file 1')
     parser.add_argument('--aDNA2', help='Input aDNA file  [Optional]', default=None)
     parser.add_argument('--sort', action='store_true', help='Sort DNA files [Optional]')
+    parser.add_argument('--index', action='store_true', help='Sort DNA files [Optional]')
 
     # Set tools from command line 
     parser.add_argument('--PMDtools', action='store_true', help='Run data on PMDTools')
@@ -61,6 +62,9 @@ def main():
     # Sort reads
     if args.sort:
         subprocess.run(['samtools', 'sort', input_bam_file_path, '-o', input_bam_file_path])
+
+    if args.index:
+        subprocess.run(['samtools', 'index', input_bam_file_path])
 
     # Create output dir if it doesn't exist
     output_dir = args.output
@@ -135,7 +139,7 @@ def main():
         subprocess.run(['rm', '-rf', pyDamage_output_dir_path])
 
         # Run pyDamage on input file
-        subprocess.run(['pydamage', '--outdir', pyDamage_output_dir_path, 'analyze', input_bam_file_path])
+        subprocess.run(['pydamage', '--outdir', pyDamage_output_dir_path, 'analyze', input_bam_file_path, '--plot'])
 
     ##############################################
     # damageProfiler ##############################
