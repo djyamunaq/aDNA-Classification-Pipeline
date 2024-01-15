@@ -23,8 +23,6 @@ def main():
     parser.add_argument('--refDNA', help='Input reference DNA files')
     parser.add_argument('--aDNA1', help='Input aDNA file 1')
     parser.add_argument('--aDNA2', help='Input aDNA file  [Optional]', default=None)
-    parser.add_argument('--sort', action='store_true', help='Sort DNA files [Optional]')
-    parser.add_argument('--index', action='store_true', help='Sort DNA files [Optional]')
 
     # Set tools from command line 
     parser.add_argument('--PMDtools', action='store_true', help='Run data on PMDTools')
@@ -42,7 +40,7 @@ def main():
 
     input_sam_file_path = os.path.join(os.path.dirname(__file__),'.data/DNA_input.sam')
     input_bam_file_path = os.path.join(os.path.dirname(__file__),'.data/DNA_input.bam')
-
+    
     # Check if file DNA inputs are in fastq format 
     if args.aDNA1.endswith('.fq') or args.aDNA1.endswith('.fastq'):
         # Convert reference DNA file (.fa) + aDNA files (.fq) to .sam format
@@ -50,21 +48,27 @@ def main():
             subprocess.run(['minimap2', '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, args.aDNA2, '-o', input_sam_file_path])
         else:
             subprocess.run(['minimap2', '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, '-o', input_sam_file_path])
-        subprocess.run(['samtools', 'view', input_sam_file_path, '-o', input_bam_file_path])
+        subprocess.run(['samtools', 'view', '-b', input_sam_file_path, '-o', input_bam_file_path])
     else:
         # Move .bam/.sam file to .data directory
         if args.aDNA1.endswith('.bam'):
             input_bam_file_path = os.path.abspath(args.aDNA1)
         elif args.aDNA1.endswith('.sam'):
             input_sam_file_path = os.path.abspath(args.aDNA1)
-            subprocess.run(['samtools', 'view', input_sam_file_path, '-o', input_bam_file_path])
+            subprocess.run(['samtools', 'view', '-b', input_sam_file_path, '-o', input_bam_file_path])
+
+    # Add MD tag
+    input_bam__aligned_file_path = os.path.join(os.path.dirname(__file__),'.data/DNA_input_aligned.bam')
+    input_bam_aligned_file = open(input_bam__aligned_file_path, '+w')
+    subprocess.run(['samtools', 'calmd', '-b', input_bam_file_path, args.refDNA], stdout=input_bam_aligned_file)
+    input_bam_aligned_file.close()
 
     # Sort reads
-    if args.sort:
-        subprocess.run(['samtools', 'sort', input_bam_file_path, '-o', input_bam_file_path])
-
-    if args.index:
-        subprocess.run(['samtools', 'index', input_bam_file_path])
+    input_bam_aligned_sorted_file_path = os.path.join(os.path.dirname(__file__),'.data/DNA_input_aligned_sorted.bam')
+    subprocess.run(['samtools', 'sort', input_bam__aligned_file_path, '-o', input_bam_aligned_sorted_file_path])
+    
+    # Index reads
+    subprocess.run(['samtools', 'index', input_bam_aligned_sorted_file_path])
 
     # Create output dir if it doesn't exist
     output_dir = args.output
@@ -97,7 +101,7 @@ def main():
         printRunningMessage('PMDtools')
 
         # Run PMDtools on input bam file
-        sp = subprocess.run(['samtools', 'view', input_bam_file_path], check=True, capture_output=True)
+        sp = subprocess.run(['samtools', 'view', '-h', input_bam_aligned_sorted_file_path], check=True, capture_output=True)
         subprocess.run(['python2', os.path.join(os.path.dirname(__file__), 'PMDtools/pmdtools.0.60.py'), '--printDS'], input=sp.stdout, stdout=output_pmdtools_file)
 
         output_pmdtools_file.close()
@@ -116,16 +120,10 @@ def main():
         # Create mapDamage output dir
         subprocess.run(['mkdir', mapDamage_output_dir_path])
 
-        # Open input file
-        input_bam_file = open(input_bam_file_path, "r") 
-        
         printRunningMessage('mapDamage')
 
         # Run mapDamage on input sam file
-        subprocess.run(['mapDamage', '-i', input_bam_file_path, '-r', args.refDNA, '-d', mapDamage_output_dir_path, '--merge-reference-sequences', '--no-stats'])
-
-        # Close files
-        input_bam_file.close()
+        subprocess.run(['mapDamage', '-i', input_bam_aligned_sorted_file_path, '-r', args.refDNA, '-d', mapDamage_output_dir_path, '--merge-reference-sequences', '--no-stats'])
 
         printEndOfToolMessage('mapDamage')
 
@@ -138,8 +136,10 @@ def main():
         # Remove pyDamage output dir if it exists
         subprocess.run(['rm', '-rf', pyDamage_output_dir_path])
 
+        printRunningMessage('pyDamage')
+
         # Run pyDamage on input file
-        subprocess.run(['pydamage', '--outdir', pyDamage_output_dir_path, 'analyze', input_bam_file_path, '--plot'])
+        subprocess.run(['pydamage', '--outdir', pyDamage_output_dir_path, 'analyze', input_bam_aligned_sorted_file_path, '--plot'])
 
     ##############################################
     # damageProfiler ##############################
