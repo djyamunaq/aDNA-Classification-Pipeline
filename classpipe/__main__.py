@@ -2,6 +2,7 @@ from argparse import ArgumentParser, Namespace
 from colorama import Fore, Back, Style
 import subprocess
 import os
+from time import sleep
 
 def printErrorMessage(message):
     print(Fore.RED + Style.BRIGHT + '[ERROR]', end=' ')
@@ -25,9 +26,9 @@ def main():
     parser = ArgumentParser()
 
     # Set input DNA files
-    parser.add_argument('--refDNA', help='Input reference DNA files')
-    parser.add_argument('--aDNA1', help='Input aDNA file 1')
-    parser.add_argument('--aDNA2', help='Input aDNA file  [Optional]', default=None)
+    parser.add_argument('--ref', help='Input reference DNA files')
+    parser.add_argument('--seq1', help='Input aDNA file 1')
+    parser.add_argument('--seq2', help='Input aDNA file  [Optional]', default=None)
 
     # Set tools from command line 
     parser.add_argument('--PMDtools', action='store_true', help='Run data on PMDTools')
@@ -43,59 +44,106 @@ def main():
     
     # Get arguments from command line
     args: Namespace = parser.parse_args()
-
+    ref = args.ref
+    seq1 = args.seq1
+    seq2 = args.seq2
+    
     # Create output dir if it doesn't exist
     output_dir = args.output
     if args.output == '.':
         output_dir = os.path.join(args.output, 'class_pipe_output')
 
-    bam_dir = os.path.join(os.path.dirname(__file__), '.data')
-    input_sam_file_path = os.path.join(bam_dir, 'DNA_input.sam')
-    input_bam_file_path = os.path.join(bam_dir, 'DNA_input.bam')        
+    # Log files
+    report_error_file_name = os.path.join(output_dir, 'report_stderr.txt')
+    report_output_file_name = os.path.join(output_dir, 'report_stdout.txt')
+    
+    command = 'mkdir -p ' + output_dir
+    subprocess.run(command, shell=True)
+    
+    # Clear temp data folder
+    data_dir = os.path.join(os.path.dirname(__file__), '.data')
+    command = 'rm ' + data_dir + '/* 1>> ' + report_output_file_name + ' 2>> ' + report_error_file_name
+    subprocess.run(command, shell=True)
+    
+    # Define input file names
+    input_sam_file_path = os.path.join(data_dir, 'DNA_input.sam')
+    input_bam_file_path = os.path.join(data_dir, 'DNA_input.bam')        
 
     # Save BAM and BAI to output
     if args.saveBam:
         bam_dir = os.path.join(output_dir, 'BAM')
-        subprocess.run(['rm', '-rf', bam_dir])
-        subprocess.run(['mkdir', bam_dir])
+        subprocess.run(['mkdir', '-p', bam_dir])
         input_sam_file_path = os.path.join(bam_dir, 'DNA_input.sam')
         input_bam_file_path = os.path.join(bam_dir, 'DNA_input.bam')
 
-
     # Check if file DNA inputs are in a valid format 
-    if args.aDNA1.endswith('.fq') or args.aDNA1.endswith('.fastq') or args.aDNA1.endswith('.fq.gz') or args.aDNA1.endswith('.fastq.gz'):
+    if args.seq1.endswith('.fq') or args.seq1.endswith('.fastq') or args.seq1.endswith('.fq.gz') or args.seq1.endswith('.fastq.gz'):
         # Convert reference DNA file (.fa) + aDNA files (.fq) to .sam format
-        if args.aDNA2:
-            subprocess.run(['minimap2', '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, args.aDNA2, '-o', input_sam_file_path])
-        else:
-            subprocess.run(['minimap2', '-t', '8', '-a', '-x', 'sr', args.refDNA, args.aDNA1, '-o', input_sam_file_path])
-        subprocess.run(['samtools', 'view', '-b', input_sam_file_path, '-o', input_bam_file_path])
-        subprocess.run(['rm', '-rf', input_sam_file_path])
-    elif args.aDNA1.endswith('.bam') or args.aDNA1.endswith('.sam'):
+        
+        # 1. Create index (bowtie2)  
+        # bowtie2-build ref.fa ref_index
+        ref_index = os.path.join(data_dir, ref)
+        command = 'bowtie2-build ' + ref + ' ' + ref_index + ' 1>> ' + report_output_file_name + ' 2>> ' + report_error_file_name 
+        subprocess.run(command, shell=True)
+
+        # 2. Align fastq (bowtie2)
+        # bowtie2 -x ref_index -U seq.fastq.gz -S seq.sam
+        seq_sam_file_name = os.path.join(data_dir, 'seq.sam')
+        
+        # Check if single-ended/paired-ended        
+        command = 'bowtie2 -x ' + ref_index + ' -U ' + seq1 + ' -S ' + seq_sam_file_name + ' 1>> ' + report_output_file_name + ' 2>> ' + report_error_file_name
+        if args.seq2:
+            command = 'bowtie2 -x ' + ref_index + ' -1 ' + seq1 + ' -2 ' + seq2 + ' -S ' + seq_sam_file_name + ' 1>> ' + report_output_file_name + ' 2>> ' + report_error_file_name
+        subprocess.run(command, shell=True)
+        
+        # 3. Pass SAM to BAM (samtools view)
+        # samtools view -bS $STUDY-data.sam > $STUDY-data.bam 2>> $REPORTS_DIR/report_stderr.txt
+        seq_bam_file_name = os.path.join(data_dir, 'seq.bam')
+        command = 'samtools view -b ' + seq_sam_file_name + ' > ' + seq_bam_file_name + ' 2>> ' + report_error_file_name 
+        subprocess.run(command, shell=True) 
+
+        # 4. Sort files (samtools sort)
+        # samtools sort -n -o $STUDY-sorted-data.bam $STUDY-data-no-human.bam 1>> $REPORTS_DIR/report_stdout.txt 2>> $REPORTS_DIR/report_stderr.txt
+        # printRunningMessage('Sorting BAM')
+        # seq_bam_sorted_file_name = os.path.join(os.path.dirname(__file__), '.data/seq_sorted.bam')
+        # command = 'samtools sort -n -o ' + seq_bam_sorted_file_name + ' ' + seq_bam_filtered_file_name + ' 1>> ' + report_output_file_name + ' 2>> ' + report_error_file_name
+        # subprocess.run(command, shell=True)
+    
+        # Transform SAM to BAM
+        # command = ''
+        # subprocess.run(command, shell=True)
+        # subprocess.run(['samtools', 'view', '-b', input_sam_file_path, '-o', input_bam_file_path])
+        # subprocess.run(['rm', '-rf', input_sam_file_path])
+    
+    elif args.seq1.endswith('.bam') or args.seq1.endswith('.sam'):
         # Move .bam/.sam file to .data directory
-        if args.aDNA1.endswith('.bam'):
-            input_bam_file_path = os.path.abspath(args.aDNA1)
-        elif args.aDNA1.endswith('.sam'):
-            input_sam_file_path = os.path.abspath(args.aDNA1)
-            subprocess.run(['samtools', 'view', '-b', input_sam_file_path, '-o', input_bam_file_path])
-            subprocess.run(['rm', '-rf', input_sam_file_path])
+        if args.seq1.endswith('.bam'):
+            seq_bam_file_name = os.path.abspath(args.seq1)
+        elif args.seq1.endswith('.sam'):
+            seq_sam_file_name = os.path.abspath(args.seq1)
+            subprocess.run(['samtools', 'view', '-b', seq_sam_file_name, '-o', seq_bam_file_name])
+            subprocess.run(['rm', '-rf', seq_sam_file_name])
     else:
         message = 'Provide a valid format for the input DNA (.fq, .bam, .sam)'
         printErrorMessage(message)
 
     # Add MD tag
-    input_bam_aligned_file_path = os.path.join(bam_dir, 'DNA_input_aligned.bam')
-    input_bam_aligned_file = open(input_bam_aligned_file_path, '+w')
-    subprocess.run(['samtools', 'calmd', '-b', input_bam_file_path, args.refDNA], stdout=input_bam_aligned_file)
-    input_bam_aligned_file.close()
+    printRunningMessage('Add MD tag')
+    seq_bam_aligned_file_name = os.path.join(data_dir, 'seq_aligned.bam')
+    command = 'samtools calmd -b ' + seq_bam_file_name + ' ' + ref + ' >> ' + seq_bam_aligned_file_name
+    subprocess.run(command, shell=True)
 
     # Sort reads
-    input_bam_aligned_sorted_file_path = os.path.join(bam_dir, 'DNA_input_aligned_sorted.bam')
-    subprocess.run(['samtools', 'sort', input_bam_aligned_file_path, '-o', input_bam_aligned_sorted_file_path])
+    printRunningMessage('Sort reads')
+    seq_bam_aligned_sorted_file_name = os.path.join(data_dir, 'seq_aligned_sorted.bam')
+    command = 'samtools sort ' + seq_bam_aligned_file_name + ' -o ' + seq_bam_aligned_sorted_file_name
+    subprocess.run(command, shell=True)
     
     # Index reads
-    input_bam_index_file_path = os.path.join(bam_dir, 'DNA_input_aligned_sorted.bai')
-    subprocess.run(['samtools', 'index', input_bam_aligned_sorted_file_path, input_bam_index_file_path])
+    printRunningMessage('Indexing reads')
+    seq_bam_index_file_name = os.path.join(data_dir, 'seq_aligned_sorted.bai')
+    command = 'samtools index ' + seq_bam_aligned_sorted_file_name + ' ' + seq_bam_index_file_name
+    subprocess.run(command, shell=True)
     
     ##############################################
     # PMDTools ###################################
@@ -105,31 +153,36 @@ def main():
         PMDtools_output_dir_path = os.path.join(output_dir, 'PDMtools')
 
         # Remove PMDtools output dir if it exists
-        subprocess.run(['rm', '-rf', PMDtools_output_dir_path])
+        command = 'rm -rf ' + PMDtools_output_dir_path
+        subprocess.run(command, shell=True)
         # Create PMDtools output dir
-        subprocess.run(['mkdir', PMDtools_output_dir_path])
+        command = 'mkdir -p ' + PMDtools_output_dir_path
+        subprocess.run(command, shell=True)
 
         # Create script to plot hist
-        output_hist_script_pmdtools_file_path = os.path.join(PMDtools_output_dir_path, 'generate_hist.r')
-        output_hist_script_pmdtools_file = open(output_hist_script_pmdtools_file_path, "w+")
-        output_hist_script_pmdtools_file.write('pmd_scores <- read.delim("output.txt", header = FALSE, sep = "\t")\nhist_data <- hist(pmd_scores$V4, breaks = 1000, xlab = "PMDscores")\nplot(hist_data, main="Histogram of PMD Scores", xlab = "PMDscores", ylab = "Frequency")')
+        output_hist_script_pmdtools_file_name = os.path.join(PMDtools_output_dir_path, 'generate_hist.r')
+        output_hist_script_pmdtools_file = open(output_hist_script_pmdtools_file_name, "w+")
+        R_source_code = 'pmd_scores <- read.delim("' + PMDtools_output_dir_path + '/PMD_output.txt", header = FALSE, sep = "\t")\nhist_data <- hist(pmd_scores$V4, breaks = 1000, xlab = "PMDscores")\nplot(hist_data, main="Histogram of PMD Scores", xlab = "PMDscores", ylab = "Frequency")'
+        output_hist_script_pmdtools_file.write(R_source_code)
         output_hist_script_pmdtools_file.close()
 
         # Create output file
-        output_pmdtools_file_path = os.path.join(PMDtools_output_dir_path, 'output.txt')
-        # Open output file
-        output_pmdtools_file = open(output_pmdtools_file_path, "w+") 
+        output_pmdtools_file_name = os.path.join(PMDtools_output_dir_path, 'PMD_output.txt')
         
         printRunningMessage('PMDtools')
 
         # Run PMDtools on input bam file
-        sp = subprocess.run(['samtools', 'view', '-h', input_bam_aligned_sorted_file_path], check=True, capture_output=True)
-        subprocess.run(['python2', os.path.join(os.path.dirname(__file__), 'PMDtools/pmdtools.0.60.py'), '--printDS'], input=sp.stdout, stdout=output_pmdtools_file)
+        command = 'samtools view -h ' + seq_bam_aligned_sorted_file_name + ' | python2 ' + os.path.join(os.path.dirname(__file__), 'PMDtools/pmdtools.0.60.py') + ' --printDS >> ' + output_pmdtools_file_name + ' 2>> ' + report_error_file_name 
+        subprocess.run(command, shell=True)
 
-        output_pmdtools_file.close()
-
+        # Draw hist
+        command = 'Rscript ' + output_hist_script_pmdtools_file_name
+        subprocess.run(command, shell=True)
+        # Move hist to folder
+        command = 'mv Rplots.pdf ' + PMDtools_output_dir_path
+        subprocess.run(command, shell=True)
+        
         printEndOfToolMessage('PMDtools')
-
 
     ##############################################
     # mapDamage ##################################
@@ -138,15 +191,17 @@ def main():
         # Create output dir
         mapDamage_output_dir_path = os.path.join(output_dir, 'mapDamage')
         # Remove mapDamage output dir if it exists
-        subprocess.run(['rm', '-rf', mapDamage_output_dir_path])
+        command = 'rm -rf ' + mapDamage_output_dir_path + ' 2>> ' + report_error_file_name
+        subprocess.run(command, shell=True)
         # Create mapDamage output dir
-        subprocess.run(['mkdir', mapDamage_output_dir_path])
+        command = 'mkdir -p ' + mapDamage_output_dir_path + ' 2>> ' + report_error_file_name
+        subprocess.run(command, shell=True)
 
         printRunningMessage('mapDamage')
 
         # Run mapDamage on input sam file
-        subprocess.run(['mapDamage', '-i', input_bam_aligned_sorted_file_path, '-r', args.refDNA, '-d', mapDamage_output_dir_path, '--merge-reference-sequences', '--no-stats'])
-
+        command = 'mapDamage -i ' + seq_bam_aligned_sorted_file_name + ' -r ' + ref + ' -d ' + mapDamage_output_dir_path + ' --merge-reference-sequences --no-stats 1>> ' + report_output_file_name + ' 2>> ' + report_error_file_name 
+        subprocess.run(command, shell=True)
         printEndOfToolMessage('mapDamage')
 
     ##############################################
@@ -156,12 +211,17 @@ def main():
         # Create output dir
         pyDamage_output_dir_path = os.path.join(output_dir, 'pyDamage')
         # Remove pyDamage output dir if it exists
-        subprocess.run(['rm', '-rf', pyDamage_output_dir_path])
-
+        command = 'rm -rf ' + pyDamage_output_dir_path + ' 2>> ' + report_error_file_name 
+        subprocess.run(command, shell=True)
+        # Create mapDamage output dir
+        command = 'mkdir -p ' + pyDamage_output_dir_path + ' 2>> ' + report_error_file_name 
+        subprocess.run(command, shell=True)
+        
         printRunningMessage('pyDamage')
 
         # Run pyDamage on input file
-        subprocess.run(['pydamage', '--outdir', pyDamage_output_dir_path, 'analyze', input_bam_aligned_sorted_file_path, '--plot'])
+        command = 'yes Y | pydamage ' + ' --outdir ' + pyDamage_output_dir_path + ' analyze ' + seq_bam_aligned_sorted_file_name + ' --plot 1>> ' + report_output_file_name + ' 2>> ' + report_error_file_name
+        subprocess.run(command, shell=True)
 
     ##############################################
     # damageProfiler ##############################
@@ -175,8 +235,8 @@ def main():
         printRunningMessage('DamageProfiler')
 
         # Run DamageProfiler on input file
-        subprocess.run(['java', '-jar', os.path.join(os.path.dirname(__file__), 'DamageProfiler/DamageProfiler-1.1-java11.jar'), '-i', input_bam_file_path, '-r', args.refDNA, '-o', damageProfiler_output_dir_path])
-
+        command = 'java -jar ' + os.path.join(os.path.dirname(__file__), 'DamageProfiler/DamageProfiler-1.1-java11.jar') + ' -i ' + input_bam_file_path + ' -r ' + ref + ' -o ' + damageProfiler_output_dir_path + ' 1>> ' + report_output_file_name + ' 2>> ' + report_error_file_name 
+        subprocess.run(command, shell=True)
 
     ##############################################
     # Atlas ######################################
@@ -185,7 +245,7 @@ def main():
         printRunningMessage('Atlas')
         # subprocess.run([os.path.join(os.path.dirname(__file__), './atlas/atlas'), '--help'])
         atlas_output_dir_path = os.path.join(output_dir, 'atlas')
-        command = os.path.join(os.path.dirname(__file__), './atlas/atlas') + ' task=PMD' + ' bam=' + input_bam_file_path + ' fasta=' + args.refDNA + ' lenght=50' + ' out=' + atlas_output_dir_path
+        command = os.path.join(os.path.dirname(__file__), './atlas/atlas') + ' task=PMD' + ' bam=' + input_bam_file_path + ' fasta=' + args.ref + ' lenght=50' + ' out=' + atlas_output_dir_path
         subprocess.run(command, shell=True)
         # ./atlas task=PMD bam=example.bam fasta=reference.fa length=50
     
@@ -195,8 +255,9 @@ def main():
     if args.metaDamage:
         printRunningMessage('MetaDamage')
 
-    # Delete unused files
-    # subprocess.run(['rm', '-rf', input_bam_file_path])
+    # Delete .data files
+    command = 'rm ' + data_dir + '/*'
+    subprocess.run(command, shell=True)
     # subprocess.run(['rm', '-rf', input_bam_aligned_file_path])
     
     printEndOfPipelineMessage()
