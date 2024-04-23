@@ -2,3 +2,5 @@ classification_pipeline.egg-info
 output
 classpipe/__pycache__
 classpipe/.data
+*desktop.ini
+classpipe/.data/*
