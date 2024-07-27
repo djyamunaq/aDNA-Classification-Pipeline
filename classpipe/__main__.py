@@ -28,7 +28,7 @@ def main():
     # Set input DNA files
     parser.add_argument('--ref', help='Input reference DNA files')
     parser.add_argument('--seq1', help='Input aDNA file 1')
-    parser.add_argument('--seq2', help='Input aDNA file  [Optional]', default=None)
+    parser.add_argument('--seq2', help='Input aDNA file 2 [Optional]', default=None)
 
     # Set tools from command line 
     parser.add_argument('--PMDtools', action='store_true', help='Run data on PMDTools')

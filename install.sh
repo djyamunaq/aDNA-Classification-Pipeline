@@ -13,13 +13,16 @@ fi
 
 # Create temporary loading animation file
 echo -e "#!/bin/bash\n\n"\$@" &\nwhile kill -0 \$!; do\n\tprintf '.' > /dev/tty\n\tsleep 1\ndone\nprintf '\\n' > /dev/tty" >> classpipe/temp
+# Make script executable
+chmod +x classpipe/temp
 
 # Update packages
 echo -n "> Updating packages "
 sudo ./classpipe/temp apt update >> /dev/null 2>&1
 
 # Install python 2
-sudo apt install python2 >> /dev/null 2>&1
+echo -n "> Install Python 2 "
+sudo ./classpipe/temp apt install python2 >> /dev/null 2>&1
 
 # Install samtools
 echo -n "> Installing samtools "
@@ -35,7 +38,7 @@ sudo ./classpipe/temp apt install minimap2 >> /dev/null 2>&1
 
 # Install samtools
 echo -n "> Installing pyDamage "
-sudo pip install pydamage >> /dev/null 2>&1
+sudo ./classpipe/temp pip install pydamage >> /dev/null 2>&1
 
 # Install atlas
 echo -n "> Installing atlas "
@@ -43,6 +46,7 @@ echo -n "> Installing atlas "
 sudo ./classpipe/temp make ./classpipe/atlas/
 
 # Install mapDamage
+echo -n "> Installing mapDamage "
 sudo ./classpipe/temp apt install mapdamage >> /dev/null 2>&1
 
 # Update git submodules
