@@ -22,10 +22,12 @@ $ ./install.sh
 ```
 
 ## Usage:
+**MetaDamage, DamageProfiler and Atlas not working!**
+
 The pipeline expects as input a fasta format file (.fa) with the mtDNA reference and one or two fastq reads. It will output in separated folders the results for each tool selected by flags.
 After installation, it is possible to run the program with the *classpipe* command in any directory.
 ```
-$ classpipe [-h] [--refDNA REFDNA] [--aDNA1 ADNA1] [--aDNA2 ADNA2] [--PMDtools] [--mapDamage] [--pyDamage] [--damageProfiler]
+$ python3 -m classpipe [-h] [--refDNA REFDNA] [--seq1 SEQ1] [--seq2 SEQ2] [--PMDtools] [--mapDamage] [--pyDamage] [--damageProfiler]
                  [--atlas] [--metaDamage] [--output OUTPUT]
 ```
 Use flag -h or --help to check on how to use the program.
